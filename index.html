@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>High-Tech Password Strength Checker</title>
+
+    <!-- Fonts & Animations -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+
+    <style>
+        :root {
+            --cyan: #00ffff;
+            --bg: #000;
+            --glow: 0 0 20px var(--cyan), 0 0 40px var(--cyan);
+        }
+        * { box-sizing: border-box; margin:0; padding:0; }
+        body {
+            background: var(--bg); color: #fff;
+            font-family: 'Orbitron', sans-serif; overflow: hidden; height: 100vh;
+        }
+
+        /* Particles background */
+        #particles-js { position: absolute; width: 100%; height: 100%; top:0; left:0; z-index:0; }
+
+        .container {
+            position: relative; z-index: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; height: 100vh; text-align: center;
+        }
+
+        /* TITLE: 100% STATIC – NO ANIMATION */
+        h1 {
+            font-size: 3.2em;
+            color: var(--cyan);
+            margin-bottom: 35px;
+            text-shadow: 0 0 15px var(--cyan), 0 0 30px var(--cyan);
+            /* No animation at all */
+        }
+
+        .input-group { margin: 25px 0; }
+        /* TEXT INPUT – characters are VISIBLE */
+        input[type="text"] {
+            background: rgba(0,0,0,0.75); color: var(--cyan); border: 2px solid var(--cyan);
+            padding: 16px 30px; font-size: 1.4em; width: 360px; border-radius: 10px;
+            box-shadow: 0 0 20px var(--cyan); transition: all 0.3s;
+            letter-spacing: 1.5px; text-align: center;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            box-shadow: 0 0 30px var(--cyan), 0 0 50px var(--cyan);
+            border-color: #00e6e6;
+        }
+
+        button {
+            background: var(--cyan); color: #000; border: none; padding: 16px 38px;
+            font-size: 1.3em; cursor: pointer; border-radius: 10px;
+            box-shadow: 0 0 20px var(--cyan); transition: all 0.3s; font-weight: bold;
+            margin-top: 10px;
+        }
+        button:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 0 35px var(--cyan), 0 0 55px var(--cyan);
+        }
+
+        #result {
+            margin-top: 40px; font-size: 1.6em; min-height: 80px;
+            text-shadow: 0 0 12px rgba(255,255,255,0.7);
+        }
+        .weak     { color: #ff4d4d; text-shadow: 0 0 15px #ff4d4d; }
+        .moderate { color: #ffdd00; text-shadow: 0 0 15px #ffdd00; }
+        .strong   { color: #4dff4d; text-shadow: 0 0 15px #4dff4d; }
+        .very-strong { color: #4d4dff; text-shadow: 0 0 15px #4d4dff; }
+
+        /* Subtle scanline overlay */
+        .scanline {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(transparent 50%, rgba(0,255,255,0.02) 50%);
+            background-size: 100% 4px; pointer-events: none; z-index: 0;
+            opacity: 0.25; animation: scan 7s linear infinite;
+        }
+        @keyframes scan { 0% { background-position: 0 0; } 100% { background-position: 0 100%; } }
+    </style>
+</head>
+<body>
+
+    <div class="scanline"></div>
+    <div id="particles-js"></div>
+
+    <div class="container">
+        <!-- STATIC TITLE – NO ANIMATION -->
+        <h1>Password Strength Checker</h1>
+        <div class="input-group">
+            <!-- TEXT INPUT → characters are VISIBLE -->
+            <input type="text" id="password" placeholder="Type your password here" autocomplete="off">
+        </div>
+        <button onclick="checkPassword()">Analyze Strength</button>
+        <div id="result" class="animate__animated"></div>
+    </div>
+
+    <!-- Particles.js -->
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+
+    <script>
+        // ====================== PARTICLES BACKGROUND ======================
+        particlesJS('particles-js', {
+            particles: {
+                number: { value: 140, density: { enable: true, value_area: 800 } },
+                color: { value: '#00ffff' },
+                shape: { type: 'circle' },
+                opacity: { value: 0.6, random: true, anim: { enable: true, speed: 0.7, opacity_min: 0.1 } },
+                size: { value: 3, random: true },
+                line_linked: { enable: true, distance: 130, color: '#00ffff', opacity: 0.3, width: 1 },
+                move: { enable: true, speed: 2.2, direction: 'none', random: true, out_mode: 'out' }
+            },
+            interactivity: {
+                detect_on: 'canvas',
+                events: { onhover: { enable: true, mode: 'grab' }, onclick: { enable: true, mode: 'push' } },
+                modes: { grab: { distance: 120, line_linked: { opacity: 1 } }, push: { particles_nb: 4 } }
+            },
+            retina_detect: true
+        });
+
+        // ====================== YOUR ORIGINAL PYTHON LOGIC ======================
+        const COMMON_PASSWORDS = new Set([
+            "123456","password","12345678","qwerty","123456789","12345",
+            "1234","111111","1234567","dragon","123123","abc123","monkey",
+            "letmein","football","iloveyou","admin","welcome"
+        ].map(p => p.toLowerCase()));
+
+        function calculateEntropy(pwd) {
+            let charset = 0;
+            if (/[a-z]/.test(pwd)) charset += 26;
+            if (/[A-Z]/.test(pwd)) charset += 26;
+            if (/\d/.test(pwd)) charset += 10;
+            if (/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) charset += 32;
+            return charset ? pwd.length * Math.log2(charset) : 0;
+        }
+
+        function getStrengthLabel(score) {
+            if (score <= 2) return { text: "Weak", cls: "weak", icon: "❌" };
+            if (score <= 4) return { text: "Moderate", cls: "moderate", icon: "⚠️" };
+            if (score <= 6) return { text: "Strong", cls: "strong", icon: "✅" };
+            return { text: "Very Strong", cls: "very-strong", icon: "🔐" };
+        }
+
+        function checkStrength(password) {
+            const length = password.length;
+            const entropy = calculateEntropy(password);
+            const hasUpper = /[A-Z]/.test(password);
+            const hasLower = /[a-z]/.test(password);
+            const hasDigit = /\d/.test(password);
+            const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+            const isCommon = COMMON_PASSWORDS.has(password.toLowerCase());
+
+            let score = 0;
+            if (length >= 8) score++;
+            if (hasUpper) score++;
+            if (hasLower) score++;
+            if (hasDigit) score++;
+            if (hasSpecial) score++;
+            if (length >= 12) score++;
+            if (entropy >= 50) score++;
+            if (isCommon) score = Math.max(0, score - 2);
+
+            const { text, cls, icon } = getStrengthLabel(score);
+            return { label: `${icon} ${text}`, entropy: entropy.toFixed(2), cls };
+        }
+
+        // ====================== UI UPDATE ======================
+        function checkPassword() {
+            const pwd = document.getElementById('password').value.trim();
+            if (!pwd) {
+                alert('Please type a password');
+                return;
+            }
+
+            const { label, entropy, cls } = checkStrength(pwd);
+            const result = document.getElementById('result');
+
+            result.innerHTML = `
+                <div>Strength: <span class="${cls}">${label}</span></div>
+                <div style="margin-top:10px; color:#aaa; font-size:0.9em;">
+                    Entropy: ${entropy} bits
+                </div>
+            `;
+
+            result.className = 'animate__animated';
+            setTimeout(() => result.classList.add('animate__bounceIn'), 10);
+        }
+
+        // Enter key support
+        document.getElementById('password').addEventListener('keypress', e => {
+            if (e.key === 'Enter') checkPassword();
+        });
+    </script>
+</body>
+</html>
